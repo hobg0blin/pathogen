@@ -19,3 +19,7 @@ six==1.15.0
 sqlparse==0.5.1
 systemd-python==234
 typing_extensions==4.12.2
+
+# Progress bar libraries
+rich>=13.0.0
+tqdm>=4.64.0
