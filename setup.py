@@ -18,6 +18,8 @@ username = ""
 
 # can't get `loading_screen` to live-update while printing after button click. It works fine on its own, which is probablhy good enough for my purposes, but I'd like to figure out how it's being piped to `output` and why that can't handle live updates (add `with output: ` to the function to get it to display from button press)
 
+# looks like nbformat could do it? https://discourse.jupyter.org/t/delete-all-code-cells-except-markdown-text/3072
+
 def run():
     global username
     loading_screen(0.00001)
@@ -30,8 +32,8 @@ def run():
     typewrite(f"Welcome to Pathogen, {username}!", 0.05)
     print(f"I'm not interested in you, {username}.")
     time.sleep(1)
-    #TODO figure out how to delete cell after running it
-    app.commands.execute('notebook:delete-cells')
+    app.commands.execute('notebook:select-all')
+    app.commands.execute('notebook:delete-cell')
     """)
 
 def loading_screen(interval):
@@ -167,3 +169,13 @@ def typewrite(text, interval):
         display.update_display(HTML(str(wrap_all)), display_id='output')
         time.sleep(interval)
         i+=1
+
+def delete_all_cells_loop():
+    """Delete all cells by looping"""
+    try:
+        while True:
+            app.commands.execute('notebook:delete-cell')
+            time.sleep(0.1)  # Small delay between deletions
+    except Exception:
+        # When there are no more cells to delete, we'll get an error
+        pass
