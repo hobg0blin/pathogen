@@ -274,7 +274,7 @@ pascal.reboot()
         time.sleep(1)
         create_code_cell("""
 # OK, it shouldn't be able to do that. Try using a hard reboot - maybe run this as soon as you can.
- pascal.hard_reboot()
+pascal.hard_reboot()
                          """, None, "bottom")
     
     def hard_reboot(self):
