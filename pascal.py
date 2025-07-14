@@ -137,7 +137,7 @@ class Pascal(object):
                 time.sleep(0.05)
                 app.commands.execute('notebook:run-cell')
 
-
+# "PLOT"/STORY FUNCTIONS
     def load(self):
         self.loaded = True
         global username
@@ -155,6 +155,7 @@ class Pascal(object):
         # At some point, cell is inserted by a researcher (code comments saying #RUN THIS CELL TO RESET, I'M SO SORRY, THIS HAPPENS SOMETIMES)
         # At that point Pascal wipes the screen, gets angry at the user, and renames itself Pathogen.
         # Would be ideal to start editing classes themselves, as well as even deleting files and folders.
+        # Remove menu items (specifically no longer allow user to stop kernel or run cells)
 
     def plot(self, prompt):
         if "IRIS" in prompt:
@@ -299,8 +300,11 @@ pascal.hard_reboot()
         typewrite("You can't do this to me", 0.005, 'kernel_reboot')
         time.sleep(2)
         destroy_all()
-        app.commands.execute("apputils:change-dark-theme")
-        app.commands.execute("apputils:toggle-header")
+        app.commands.execute("apputils:change-theme", {"theme": "JupyterLab Dark"})
+        remove_menu_items()
+        create_markdown_cell("""
+                             Uh oh! You'd better find a way to stop the kernel or who knows what I might do.
+                             """)
 
 
 def destroy_all():
@@ -347,7 +351,7 @@ def loading_screen():
 
 
 
-
+# UTILITY FUNCTIONS
 from ipylab import JupyterFrontEnd
 app = JupyterFrontEnd()
 
@@ -528,3 +532,53 @@ def get_cell_count(nb):
                 counter += 1
     return counter
 
+def remove_menu_items():
+    js_code = """
+    // Remove specific menu items
+    const menuBar = document.querySelector('.lm-MenuBar');
+//    menuBar.innerText = 'YOU ASKED FOR THIS'
+    if (menuBar) {
+        const menuItems = menuBar.querySelectorAll('.lm-MenuBar-item');
+        menuItems.forEach(item => {
+            item.addEventListener('mouseenter', (event) => {
+                item.style.display = 'none';
+            });
+        });
+    }
+    
+    const notebookPanelToolBar = document.querySelector('.jp-NotebookPanel-toolbar');
+    if (notebookPanelToolBar) {
+        const toolbarItems = notebookPanelToolBar.querySelectorAll('jp-button');
+        toolbarItems.forEach(item => {
+            item.disabled = true; // Disable the toolbar items
+            item.addEventListener('click', (event) => {
+                event.stopPropagation(); // Prevent the default action
+                alert('Not anymore.')
+            });
+        })
+    }
+    
+    const fileBrowser = document.querySelector('.jp-FileBrowser-Panel');
+    if (fileBrowser) {
+        const fileBrowserHeader = fileBrowser.querySelector('.jp-DirListing-header')
+        fileBrowserHeader.innerText = "These aren't for you."
+        const fileBrowserItems = fileBrowser.querySelectorAll('.jp-DirListing-item');
+        fileBrowserItems.forEach(item => {
+            item.style.display = 'none'; // Hide the file browser items
+        })
+        
+    const shutDownButtons = document.querySelectorAll('.jp-RunningSessions-shutdownAll');
+    shutDownButtons.forEach(button => {
+     button.addEventListener('mouseenter', (event) => {
+        console.log('Shutdown button hovered')
+        event.stopPropagation(); // Prevent the default action
+        button.disabled = true; // Disable the shutdown button
+        button.innerText = "I'M AFRAID I CAN'T DO THAT, JAKE"
+    });
+
+    })
+   
+}
+    
+    """
+    display.display(display.Javascript(js_code))
