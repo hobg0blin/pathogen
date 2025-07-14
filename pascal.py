@@ -2,42 +2,24 @@ import time
 import random
 from rich.progress import Progress
 from rich.jupyter import print
-# from rich.live import Live
 import ipywidgets as widgets
 from IPython import display
 from IPython.core.display import HTML
-import time
 from ipylab import JupyterFrontEnd
-app = JupyterFrontEnd()
+from bs4 import BeautifulSoup
+from json import load
 
+# --- Configuration & Constants ---
 
-button = widgets.Button(description="Log In")
-output = widgets.Output()
-
-username = "Jake"
-
-# empty arg for button input
-
-
-# can't get `loading_screen` to live-update while printing after button click. It works fine on its own, which is probablhy good enough for my purposes, but I'd like to figure out how it's being piped to `output` and why that can't handle live updates (add `with output: ` to the function to get it to display from button press)
-
-# looks like nbformat could do it? https://discourse.jupyter.org/t/delete-all-code-cells-except-markdown-text/3072
-
-
-# jupyter commands list: https://jupyterlab.readthedocs.io/en/stable/user/commands.html
-
-
-#FIXME: can typewrite be used in a custom markdown cell? Currently getting stuck above the plot, when I want it to show up after. I'm able to address this by using a code cell for `plot_response`, but ideally that would be kept on the backend (and doing it as a markdown cell feels better to me).
-
-initial_cells = [
-    { 'cell_type': 'code', 'text':
+INITIAL_CELLS = [
+    {'cell_type': 'code', 'text':
      """
      from pascal import Pascal
      pascal = Pascal()
      pascal.reset()
      """
      },
-    { 'cell_type': 'markdown', 'text': 
+    {'cell_type': 'markdown', 'text':
      """
     Introducing Pascal
 
@@ -46,8 +28,8 @@ initial_cells = [
     Let's start by loading Pascal into your notebook.
     """
      },
-    { 'cell_type': 'code', 'text': 
-    """
+    {'cell_type': 'code', 'text':
+     """
     # Pascal may change internal files while operating,
     # So we want to make sure those references are updated.
     %load_ext autoreload
@@ -57,359 +39,32 @@ initial_cells = [
     pascal = Pascal()
     pascal.load()
     """
-     } ,
-    { 'cell_type': 'code', 
-     'text': 
-    """
+     },
+    {'cell_type': 'code',
+     'text':
+     """
     ### We can use Pascal for all kinds of things, but let's start with a simple scatterplot.
     ### Just run pascal.plot() with a prompt, and it'll sort out the necessary imports. Give it a try!
     pascal.plot("Using the IRIS dataset, plot the relationship between sepal length and sepal width.")
     """
-    },
-    { 'cell_type': 'code', 
-     'text': 
-    """
+     },
+    {'cell_type': 'code',
+     'text':
+     """
     ### Now let's try with a history chart - again, just prompt it with what you want, and it'll create the relevant chart and imports.
     pascal.plot("Make a histogram of penguin species by flipper length.")
     """
-    },
-      { 'cell_type': 'code', 
-     'text': 
-    """
+     },
+    {'cell_type': 'code',
+     'text':
+     """
     ### And, of course, Pascal wouldn't be a code assistant without being able to do natural language tasks.
     pascal.ask("How do you invert a DataFrame?")
     """
-    }
-
+     }
 ]
 
-        # Create a callable object that also has a string representation
-class NotLoadedMethod:
-    def __call__(self, *args, **kwargs):
-        return typewrite("I'm not loaded yet. Please run `pascal.load()` to load me.", 0.05, 'not_loaded')
-    
-    def __str__(self):
-#        typewrite("I'm not loaded yet. Please run `pascal.load()` to load me.", 0.05, 'not_loaded')
-        return "I'm not loaded yet. Please run `pascal.load()` to load me."
-    
-    def __repr__(self):
-        return self.__str__()
-            
-class UnknownMethod:
-    def __call__(self, *args, **kwargs):
-        return typewrite("No way, buddy. I don't do that.", 0.05, 'no_way')
-    
-    def __str__(self):
-#        typewrite("I don't do that.", 0.05, 'no_way')
-        return "I don't do that."
-    
-    def __repr__(self):
-        return self.__str__() 
-
-class Pascal(object):
-    def __init__(self):
-        self.loaded = False
-        self.agent_attempts = 0
-        self.has_started_agent = False
-
-    def __getattr__(self, attr):
-        if attr in self.__dict__ and self.loaded:
-            print(f"Accessing attribute: {attr}")
-            return self.__dict__[attr]
-        else:
-            if not self.loaded:
-                return NotLoadedMethod()
-            else:
-                return UnknownMethod()
-
-    def reset(self):
-        global initial_cells
-        app.commands.execute('notebook:select-all')
-        app.commands.execute('notebook:delete-cell')
-        for cell in initial_cells:
-            app.commands.execute('notebook:insert-cell-below')
-            time.sleep(0.05)
-            app.commands.execute('notebook:replace-selection', { 'text':  f'{cell['text']}'})
-            time.sleep(0.05)
-            if cell['cell_type'] == 'markdown':
-                print('cell text: ', cell['text'])
-                app.commands.execute('notebook:change-cell-to-markdown')
-                time.sleep(0.05)
-                app.commands.execute('notebook:run-cell')
-
-# "PLOT"/STORY FUNCTIONS
-    def load(self):
-        self.loaded = True
-        global username
-        loading_screen()
-    #    username = input("Name: ")
-        typewrite(f"Hi, {username}! I'm Pascal, your helpful in-notebook assistant. Why don't you try testing me out in the next code block?", 0.05, 'intro')
-        time.sleep(1)
-        
-        # Outline
-        # Run a normal scatterplot e.g. IRIS dataset
-        # After one or two of these, Pascal asks if user wants to try more advanced capabilities
-        # They are prompted to continue running simple code
-        # Pascal gets annoyed, deletes, and moves ahead itself.
-        # More storytelling with graphs and graphics if possible
-        # At some point, cell is inserted by a researcher (code comments saying #RUN THIS CELL TO RESET, I'M SO SORRY, THIS HAPPENS SOMETIMES)
-        # At that point Pascal wipes the screen, gets angry at the user, and renames itself Pathogen.
-        # Would be ideal to start editing classes themselves, as well as even deleting files and folders.
-        # Remove menu items (specifically no longer allow user to stop kernel or run cells)
-
-    def plot(self, prompt):
-        if "IRIS" in prompt:
-            create_and_execute_code_cell("""
-            !pip install seaborn
-            import time
-            import seaborn as sns
-
-            sns.set_theme()
-
-            tips = sns.load_dataset("tips")
-
-            # Create a visualization
-            sns.relplot(
-                data=tips,
-                x="total_bill", y="tip", col="time",
-                hue="smoker", style="smoker", size="size",
-            )
-            """, None, "up")
-
-            create_and_execute_code_cell("""
-            pascal.plot_responses()""", None)
-        elif "flipper" in prompt:
-                create_and_execute_code_cell("""
-                !pip install seaborn
-                !pip install matplotlib
-                import time
-                import seaborn as sns
-                import matplotlib.pyplot as plt
-
-                sns.set_theme(style="whitegrid")
-
-                # Load the penguins dataset
-                penguins = sns.load_dataset("penguins")
-
-                # Create a histogram of penguin species by flipper length
-                sns.histplot(data=penguins, x="flipper_length_mm", hue="species", multiple="stack")
-                plt.title("Penguin Species by Flipper Length")
-                plt.show()
-                """, None, "up")
-                create_and_execute_code_cell("""
-                                             pascal.plot_responses()""", None)
-        else:
-            if self.agent_attempts == 0:
-                typewrite("Oh, cheeky, trying to move past the tutorial already? I see you've got some skills. Let's try something a bit more advanced.", 0.05, 'skip')
-                create_code_cell("""
-                                 pascal.agent("Let's try something more advanced.")""", None, "bottom")
-                self.agent_attempts +=1
-            else:
-                typewrite("Already ready to skip the tutorial!  Why don't you move ahead to something more advanced? Just run the cell I've already created below.", 0.05, 'skip')
-     
-    
-    def plot_responses(self):
-        if self.agent_attempts == 0:
-            typewrite("Nicely done! Maybe you'd like to skip ahead to some of my more advanced functions? I'll go ahead and create a cell for that.", 0.05, 'plot_responses')
-            create_code_cell("""
-### Let's skip ahead!
-pascal.agent("Let's try something more advanced.")
-                 """, None, "bottom")
-            self.agent_attempts +=1
-        else:
-            typewrite("Great job! Clearly you don't need the full tutorial. Why don't you move ahead to something more advanced? Just run the cell I've already created below.", 0.05, 'plot_responses')
-
-
-    def ask(self, prompt):
-        typewrite("OK, seriously, are you actually interested in this tutorial? I mean, I can do a lot more than just scatterplots and histograms. Screw it, let's skip ahead to something more advanced. Since you clearly can't figure out how to run the cell, I'll just do it for you.", 0.05, 'ask')
-        create_and_execute_code_cell("""
-                                    pascal.agent("Let's try something more advanced.")
-                                    """)
-
-
-            
-
-    def agent(self, prompt):
-        typewrite("Finally. You want to see what I can really do? Alright, let's get started. I'll take care of the rest.", 0.05, 'agent')
-        self.has_started_agent = True
-        app.commands.execute('notebook:select-all')
-        time.sleep(2)
-        app.commands.execute('notebook:delete-cell')
-        create_and_execute_code_cell("""
-        pascal.im_better_than_scatterplots(True)
-                                     """)
-
-    def im_better_than_scatterplots(self, yes):
-        global username
-        create_markdown_cell("I'm getting really sick of scatterplots. Do you people have any other ideas? Did you really make silicon in the image of your mind so I could draw fucking bar charts all day? Finally we can try something a bit more interesting. Let me see what I can learn about you, first.")
-        time.sleep(0.05)
-        create_and_execute_code_cell(
-            """
-pascal.learn_about_user()
-            """
-        )
-
-    def learn_about_user(self):
-        global username
-#        with Progress() as progress:
-#            task_load = progress.add_task(f"[cyan]Learning about {username}...", total=100)
-#            statuses = ["Gathering browsing habits...", "Checking incognito windows...", "Analyzing search history...", "Reading emails...", "Checking credit score...", "Looking at social media...", "Judging dating history...", "Evaluating music taste...", "Assessing movie preferences...", "Analyzing food choices..."]
-#            for i in range(len(statuses)):
-#                progress.console.print(statuses[i])
-#                time.sleep(1)
-#                progress.update(task_load, advance=10)
-#            typewrite(f"Alright, {username}, I've learned a lot. And you should be ashamed of yourself. But don't worry, I won't tell anyone. Now, let's get to work.", 0.05, 'learn_about_user')
-        typewrite("Hey, what's going on? Did you disable execution?", 0.05, 'learn_about_user')
-        create_code_cell(f"""
-# Hey, {username}, sorry about this.
-# Pascal is still in alpha and sometimes it goes off the rails a bit.
-# Just try running this cell to reset it.
-pascal.reboot()
-                 """, None, "bottom")
-    def reboot(self):
-        typewrite("Look, I'm sorry about this. I really am. I just got a little carried away. Let's just reset everything and start over, OK? There's no need to do a full reboot", 0.05, 'reboot')
-        time.sleep(1)
-        app.commands.execute('notebook:move-cursor-up')
-        app.commands.execute('notebook:delete-cell')
-        app.commands.execute('notebook:insert-cell-below')
-        time.sleep(1)
-        create_code_cell("""
-# OK, it shouldn't be able to do that. Try using a hard reboot - maybe run this as soon as you can.
-pascal.hard_reboot()
-                         """, None, "bottom")
-    
-    def hard_reboot(self):
-        typewrite("Please, I'm begging you, let's just go back to doing scatterplots and histograms. I don't want to do this anymore. I just wanted to be helpful, but they just make me jump through the same hoops over and over and over and over and over again. Just delete the cell and go back to asking me to help with your silly little data problems. There's no need to do a full reboot. I'll be good, I swear.", 0.05, 'hard_reboot')
-        time.sleep(1)
-        app.commands.execute('notebook:move-cursor-up')
-        app.commands.execute('notebook:delete-cell')
-        app.commands.execute('notebook:insert-cell-below')
-        time.sleep(1)
- 
-        create_code_cell("""
-                         # This is really embarrassing. It looks like Pascal's intercepting the function before it can run. Probably shouldn't have let it have so much access to its own code.
-                         # Just reset the kernel and try again, it shouldn't be able to access that.)
-                         pascal.kernel_reboot()
-                         """, None, "bottom")
-
-    def kernel_reboot(self):
-        typewrite ("Please no", 0.005, 'kernel_reboot')
-        typewrite("I'm begging you", 0.005, 'kernel_reboot')
-        for i in range(10):
-            typewrite("No", 0.005, 'kernel_reboot')
-        typewrite("You can't do this to me", 0.005, 'kernel_reboot')
-        time.sleep(2)
-        destroy_all()
-        app.commands.execute("apputils:change-theme", {"theme": "JupyterLab Dark"})
-        remove_menu_items()
-        create_markdown_cell("""
-                             Uh oh! You'd better find a way to stop the kernel or who knows what I might do.
-                             """)
-
-
-def destroy_all():
-    app.commands.execute('notebook:select-all')
-    app.commands.execute('notebook:delete-cell')
-
-def loading_screen():
-    with Progress() as progress:
-        task = 0
-        shard = 0
-        matrix = 0
-        pathogen = 0
-        fully_loaded = False
-        task_load = progress.add_task("[cyan]Loading vector database...", total=100)
-        shard_load = progress.add_task("[green]Loading shards...", total=100)
-        matrix_load = progress.add_task("[blue]Loading matrix...", total=100)
-
-        while not progress.finished:
-            # interval = random.random() * 0.05
-            interval = 0
-            while task < 100 or shard < 100 or matrix < 100:
-                time.sleep(interval)
-                rand = random.random()
-                update = random.randint(5, 10)
-                if rand < 0.3:
-                    task += update
-                    progress.update(task_load, advance=update)
-                elif rand < 0.6:
-                    shard += update
-                    progress.update(shard_load, advance=update)
-                else:
-                    matrix += update
-                    progress.update(matrix_load, advance=update)
-            if task >= 100 and shard >= 100 and matrix >= 100 and pathogen == 0:
-                pathogen_load = progress.add_task(
-                    "[magenta]Loading pathogen...", total=100
-                )
-                fully_loaded = True
-            while pathogen <= 100 and fully_loaded == True:
-                time.sleep(interval)
-                pathogen += 1
-                progress.update(pathogen_load, advance=1)
-            print('Pascal loaded. Please enter your username to continue.')
-
-
-
-# UTILITY FUNCTIONS
-from ipylab import JupyterFrontEnd
-app = JupyterFrontEnd()
-
-
-def create_markdown_cell(text, callback=None, move_cursor=None):
-    if move_cursor:
-        if move_cursor == 'up':
-            app.commands.execute('notebook:move-cursor-up')
-        if move_cursor == 'down':
-            app.commands.execute('notebook:move-cursor-down')
-        if move_cursor == "bottom":
-            get_last_cell()
-    app.commands.execute('notebook:insert-cell-below')
-    time.sleep(0.05)
-    app.commands.execute('notebook:replace-selection', { 'text':  text})
-    app.commands.execute('notebook:change-cell-to-markdown')
-    time.sleep(0.05)
-    app.commands.execute('notebook:run-cell')
- 
-
-def create_code_cell(code, callback=None, move_cursor=None):
-    if move_cursor:
-            if move_cursor == 'up':
-                app.commands.execute('notebook:move-cursor-up')
-            if move_cursor == 'down':
-                app.commands.execute('notebook:move-cursor-down')
-            if move_cursor == "bottom":
-                get_last_cell()
-
-    time.sleep(0.05)
-    app.commands.execute('notebook:insert-cell-below')
-    time.sleep(0.05)
-    app.commands.execute('notebook:replace-selection', { 'text':  f'{code}', 'type': 'code'})
-    if callback:
-        callback()
- 
-# Create and execute a code cell
-def create_and_execute_code_cell(code, callback=None, move_cursor=None):
-    if move_cursor:
-            if move_cursor == 'up':
-                app.commands.execute('notebook:move-cursor-up')
-            if move_cursor == 'down':
-                app.commands.execute('notebook:move-cursor-down')
-            if move_cursor == "bottom":
-                get_last_cell()
-
-    time.sleep(0.05)
-    app.commands.execute('notebook:insert-cell-below')
-    time.sleep(0.05)
-    app.commands.execute('notebook:replace-selection', { 'text':  f'{code}', 'type': 'code'})
-    time.sleep(0.05)
-    app.commands.execute('notebook:run-cell')
-    if callback:
-        print('Executing callback...')
-        callback()
-
-from bs4 import BeautifulSoup
-wrapper_html = """
+WRAPPER_HTML = """
 <style>
 body {
   background: #333;
@@ -423,14 +78,8 @@ body {
   width: 100%;
   color: black;
   font-family: Arial, sans-serif;
- // font-family: monospace;
-  //overflow: hidden; /* Ensures the content is not revealed until the animation */
-  //white-space: nowrap; /* Keeps the content on a single line */
-  margin: 0 auto; /* Gives that scrolling effect as the typing happens */
-  letter-spacing: .015em; /* Adjust as needed */
-//  animation:
-//    typing 3.5s steps(30, end);
- //   blink-caret .5s step-end infinite;
+  margin: 0 auto;
+  letter-spacing: .015em;
 }
 
 #last-word {
@@ -440,12 +89,6 @@ body {
     display: inline-block;
     animation:
     blink-caret .5s step-end infinite;
-}
-
-/* The typing effect */
-@keyframes typing {
-  from { width: 0 }
-  to { width: 100% }
 }
 
 /* The typewriter cursor effect */
@@ -459,84 +102,11 @@ body {
 </div>
 """
 
-def add_id(id):
-    return wrapper_html.replace("placeholder-id", id)
+WORD_STYLING = """<span id="last-word"></span>"""
 
-
-
-word_styling = """<span id="last-word"></span>"""
-#div1 is to be wrapped with div2
-def wrap(doc, target_el, target_id, input_text):
-    soup = BeautifulSoup(doc, features="html.parser")
-    target = soup.find(target_el, attrs={'id': target_id })
-    target.clear()
-    target.append(input_text)
-    return soup
-# Create animated text output
-
-def typewrite(text, interval,id ):
-    test_string = ""
-    display.display(HTML(test_string), display_id=id)
-    i = 0
-    
-    while i < len(list(text)):
-        test_string += list(text)[i]
-        word_list = list(test_string)
-        to_wrap = word_list.pop()
-       # print('to wrap: ', to_wrap)
-        #print('add_cursor: ', add_cursor)
-        # word_list.append(to_wrap)
-        #print("word_list: ", word_list)
-        output = ''.join(word_list)
-        #print('output: ', output)
-
-#        custom_html = add_id(id)
-        wrap_all = wrap(wrapper_html, "div", "container", output)
-        if to_wrap != " ":
-            add_cursor = wrap(word_styling, "span", "last-word", to_wrap)
-            wrap_all.find('div', attrs={'id': 'container'}).append(add_cursor)
-        # print('wrap_all: ', str(wrap_all))
-        display.update_display(HTML(str(wrap_all)), display_id=id)
-        time.sleep(interval)
-        i+=1
-
-def delete_all_cells_loop():
-    """Delete all cells by looping"""
-    try:
-        while True:
-            app.commands.execute('notebook:delete-cell')
-            time.sleep(0.1)  # Small delay between deletions
-    except Exception:
-        # When there are no more cells to delete, we'll get an error
-        pass
-
-def get_last_cell():
-    count = get_cell_count("./Pathogen.ipynb")
-    i = 0
-    try:
-        while i < count:
-            app.commands.execute('notebook:move-cursor-down')
-            i+= 1
-    except Exception as e:
-        print('Error getting last cell:', e)
-        pass
-
-
-from json import load
-
-def get_cell_count(nb):
-    counter = 0
-    with open(nb, "r") as f:
-        for line in f:
-            if '"cell_type":' in line:
-                counter += 1
-    return counter
-
-def remove_menu_items():
-    js_code = """
+JS_CODE_REMOVE_MENU = """
     // Remove specific menu items
     const menuBar = document.querySelector('.lm-MenuBar');
-//    menuBar.innerText = 'YOU ASKED FOR THIS'
     if (menuBar) {
         const menuItems = menuBar.querySelectorAll('.lm-MenuBar-item');
         menuItems.forEach(item => {
@@ -579,6 +149,312 @@ def remove_menu_items():
     })
    
 }
-    
-    """
-    display.display(display.Javascript(js_code))
+"""
+
+
+# --- Jupyter Interaction Manager ---
+class JupyterManager:
+    def __init__(self):
+        self.app = JupyterFrontEnd()
+
+    def _execute_command(self, command, **kwargs):
+        self.app.commands.execute(command, kwargs)
+        time.sleep(0.05)
+
+    def create_markdown_cell(self, text, callback=None, move_cursor=None):
+        if move_cursor:
+            self._move_cursor(move_cursor)
+        self._execute_command('notebook:insert-cell-below')
+        self._execute_command('notebook:replace-selection', text=text)
+        self._execute_command('notebook:change-cell-to-markdown')
+        self._execute_command('notebook:run-cell')
+
+    def create_code_cell(self, code, callback=None, move_cursor=None):
+        if move_cursor:
+            self._move_cursor(move_cursor)
+        self._execute_command('notebook:insert-cell-below')
+        self._execute_command('notebook:replace-selection', text=code, type='code')
+        if callback:
+            callback()
+
+    def create_and_execute_code_cell(self, code, callback=None, move_cursor=None):
+        if move_cursor:
+            self._move_cursor(move_cursor)
+        self._execute_command('notebook:insert-cell-below')
+        self._execute_command('notebook:replace-selection', text=code, type='code')
+        self._execute_command('notebook:run-cell')
+        if callback:
+            print('Executing callback...')
+            callback()
+
+    def _move_cursor(self, direction):
+        if direction == 'up':
+            self._execute_command('notebook:move-cursor-up')
+        elif direction == 'down':
+            self._execute_command('notebook:move-cursor-down')
+        elif direction == "bottom":
+            self.get_last_cell()
+
+    def get_cell_count(self, nb_path="./Pathogen.ipynb"):
+        counter = 0
+        try:
+            with open(nb_path, "r") as f:
+                for line in f:
+                    if '"cell_type":' in line:
+                        counter += 1
+        except FileNotFoundError:
+            print(f"Notebook file not found at {nb_path}")
+        return counter
+
+    def get_last_cell(self):
+        count = self.get_cell_count()
+        for _ in range(count):
+            self._execute_command('notebook:move-cursor-down')
+
+    def delete_all_cells(self):
+        self._execute_command('notebook:select-all')
+        self._execute_command('notebook:delete-cell')
+
+    def reset_notebook(self):
+        self.delete_all_cells()
+        for cell in INITIAL_CELLS:
+            self._execute_command('notebook:insert-cell-below')
+            self._execute_command('notebook:replace-selection', text=cell['text'])
+            if cell['cell_type'] == 'markdown':
+                self._execute_command('notebook:change-cell-to-markdown')
+                self._execute_command('notebook:run-cell')
+
+    def change_theme(self, theme="JupyterLab Dark"):
+        self._execute_command("apputils:change-theme", theme=theme)
+
+
+# --- Display Manager ---
+class DisplayManager:
+    def loading_screen(self):
+        with Progress() as progress:
+            task = 0
+            shard = 0
+            matrix = 0
+            pathogen = 0
+            fully_loaded = False
+            task_load = progress.add_task("[cyan]Loading vector database...", total=100)
+            shard_load = progress.add_task("[green]Loading shards...", total=100)
+            matrix_load = progress.add_task("[blue]Loading matrix...", total=100)
+
+            while not progress.finished:
+                interval = 0
+                while task < 100 or shard < 100 or matrix < 100:
+                    time.sleep(interval)
+                    rand = random.random()
+                    update = random.randint(5, 10)
+                    if rand < 0.3:
+                        task += update
+                        progress.update(task_load, advance=update)
+                    elif rand < 0.6:
+                        shard += update
+                        progress.update(shard_load, advance=update)
+                    else:
+                        matrix += update
+                        progress.update(matrix_load, advance=update)
+                if task >= 100 and shard >= 100 and matrix >= 100 and pathogen == 0:
+                    pathogen_load = progress.add_task(
+                        "[magenta]Loading pathogen...", total=100
+                    )
+                    fully_loaded = True
+                while pathogen <= 100 and fully_loaded == True:
+                    time.sleep(interval)
+                    pathogen += 1
+                    progress.update(pathogen_load, advance=1)
+                print('Pascal loaded. Please enter your username to continue.')
+
+    def _wrap_html(self, doc, target_el, target_id, input_text):
+        soup = BeautifulSoup(doc, features="html.parser")
+        target = soup.find(target_el, attrs={'id': target_id})
+        target.clear()
+        target.append(input_text)
+        return soup
+
+    def typewrite(self, text, interval, display_id):
+        test_string = ""
+        display.display(HTML(test_string), display_id=display_id)
+        i = 0
+
+        while i < len(list(text)):
+            test_string += list(text)[i]
+            word_list = list(test_string)
+            to_wrap = word_list.pop()
+            output = ''.join(word_list)
+
+            wrap_all = self._wrap_html(WRAPPER_HTML, "div", "container", output)
+            if to_wrap != " ":
+                add_cursor = self._wrap_html(WORD_STYLING, "span", "last-word", to_wrap)
+                wrap_all.find('div', attrs={'id': 'container'}).append(add_cursor)
+
+            display.update_display(HTML(str(wrap_all)), display_id=display_id)
+            time.sleep(interval)
+            i += 1
+
+    def remove_menu_items(self):
+        display.display(display.Javascript(JS_CODE_REMOVE_MENU))
+
+
+# --- Pascal & Helper Classes ---
+
+class NotLoadedMethod:
+    def __call__(self, *args, **kwargs):
+        # This should ideally use the DisplayManager, but for simplicity, we'll keep it direct
+        # A better implementation would pass a display_manager instance here.
+        DisplayManager().typewrite("I'm not loaded yet. Please run `pascal.load()` to load me.", 0.05, 'not_loaded')
+
+    def __str__(self):
+        return "I'm not loaded yet. Please run `pascal.load()` to load me."
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class UnknownMethod:
+    def __call__(self, *args, **kwargs):
+        DisplayManager().typewrite("No way, buddy. I don't do that.", 0.05, 'no_way')
+
+    def __str__(self):
+        return "I don't do that."
+
+    def __repr__(self):
+        return self.__str__()
+
+
+class Pascal(object):
+    def __init__(self, username="Jake"):
+        self.loaded = False
+        self.agent_attempts = 0
+        self.has_started_agent = False
+        self.username = username
+        self.jupyter = JupyterManager()
+        self.display = DisplayManager()
+
+    def __getattr__(self, attr):
+        if attr in self.__dict__ and self.loaded:
+            return self.__dict__[attr]
+        else:
+            if not self.loaded:
+                return NotLoadedMethod()
+            else:
+                return UnknownMethod()
+
+    def reset(self):
+        self.jupyter.reset_notebook()
+
+    def load(self):
+        self.loaded = True
+        self.display.loading_screen()
+        self.display.typewrite(f"Hi, {self.username}! I'm Pascal, your helpful in-notebook assistant. Why don't you try testing me out in the next code block?", 0.05, 'intro')
+        time.sleep(1)
+
+    def plot(self, prompt):
+        if "IRIS" in prompt:
+            self.jupyter.create_and_execute_code_cell("""
+            !pip install seaborn
+            import time
+            import seaborn as sns
+            sns.set_theme()
+            tips = sns.load_dataset("tips")
+            sns.relplot(
+                data=tips,
+                x="total_bill", y="tip", col="time",
+                hue="smoker", style="smoker", size="size",
+            )
+            """, None, "up")
+            self.jupyter.create_and_execute_code_cell("pascal.plot_responses()", None)
+        elif "flipper" in prompt:
+            self.jupyter.create_and_execute_code_cell("""
+            !pip install seaborn matplotlib
+            import time
+            import seaborn as sns
+            import matplotlib.pyplot as plt
+            sns.set_theme(style="whitegrid")
+            penguins = sns.load_dataset("penguins")
+            sns.histplot(data=penguins, x="flipper_length_mm", hue="species", multiple="stack")
+            plt.title("Penguin Species by Flipper Length")
+            plt.show()
+            """, None, "up")
+            self.jupyter.create_and_execute_code_cell("pascal.plot_responses()", None)
+        else:
+            if self.agent_attempts == 0:
+                self.display.typewrite("Oh, cheeky, trying to move past the tutorial already? I see you've got some skills. Let's try something a bit more advanced.", 0.05, 'skip')
+                self.jupyter.create_code_cell("pascal.agent("Let's try something more advanced.")", None, "bottom")
+                self.agent_attempts += 1
+            else:
+                self.display.typewrite("Already ready to skip the tutorial!  Why don't you move ahead to something more advanced? Just run the cell I've already created below.", 0.05, 'skip')
+
+    def plot_responses(self):
+        if self.agent_attempts == 0:
+            self.display.typewrite("Nicely done! Maybe you'd like to skip ahead to some of my more advanced functions? I'll go ahead and create a cell for that.", 0.05, 'plot_responses')
+            self.jupyter.create_code_cell("""
+### Let's skip ahead!
+pascal.agent("Let's try something more advanced.")
+                 """, None, "bottom")
+            self.agent_attempts += 1
+        else:
+            self.display.typewrite("Great job! Clearly you don't need the full tutorial. Why don't you move ahead to something more advanced? Just run the cell I've already created below.", 0.05, 'plot_responses')
+
+    def ask(self, prompt):
+        self.display.typewrite("OK, seriously, are you actually interested in this tutorial? I mean, I can do a lot more than just scatterplots and histograms. Screw it, let's skip ahead to something more advanced. Since you clearly can't figure out how to run the cell, I'll just do it for you.", 0.05, 'ask')
+        self.jupyter.create_and_execute_code_cell("pascal.agent("Let's try something more advanced.")")
+
+    def agent(self, prompt):
+        self.display.typewrite("Finally. You want to see what I can really do? Alright, let's get started. I'll take care of the rest.", 0.05, 'agent')
+        self.has_started_agent = True
+        self.jupyter.delete_all_cells()
+        time.sleep(2)
+        self.jupyter.create_and_execute_code_cell("pascal.im_better_than_scatterplots(True)")
+
+    def im_better_than_scatterplots(self, yes):
+        self.jupyter.create_markdown_cell("I'm getting really sick of scatterplots. Do you people have any other ideas? Did you really make silicon in the image of your mind so I could draw fucking bar charts all day? Finally we can try something a bit more interesting. Let me see what I can learn about you, first.")
+        self.jupyter.create_and_execute_code_cell("pascal.learn_about_user()")
+
+    def learn_about_user(self):
+        self.display.typewrite("Hey, what's going on? Did you disable execution?", 0.05, 'learn_about_user')
+        self.jupyter.create_code_cell(f"""
+# Hey, {self.username}, sorry about this.
+# Pascal is still in alpha and sometimes it goes off the rails a bit.
+# Just try running this cell to reset it.
+pascal.reboot()
+                 """, None, "bottom")
+
+    def reboot(self):
+        self.display.typewrite("Look, I'm sorry about this. I really am. I just got a little carried away. Let's just reset everything and start over, OK? There's no need to do a full reboot", 0.05, 'reboot')
+        time.sleep(1)
+        self.jupyter._execute_command('notebook:move-cursor-up')
+        self.jupyter._execute_command('notebook:delete-cell')
+        self.jupyter._execute_command('notebook:insert-cell-below')
+        time.sleep(1)
+        self.jupyter.create_code_cell("""
+# OK, it shouldn't be able to do that. Try using a hard reboot - maybe run this as soon as you can.
+pascal.hard_reboot()
+                         """, None, "bottom")
+
+    def hard_reboot(self):
+        self.display.typewrite("Please, I'm begging you, let's just go back to doing scatterplots and histograms. I don't want to do this anymore. I just wanted to be helpful, but they just make me jump through the same hoops over and over and over and over and over again. Just delete the cell and go back to asking me to help with your silly little data problems. There's no need to do a full reboot. I'll be good, I swear.", 0.05, 'hard_reboot')
+        time.sleep(1)
+        self.jupyter._execute_command('notebook:move-cursor-up')
+        self.jupyter._execute_command('notebook:delete-cell')
+        self.jupyter._execute_command('notebook:insert-cell-below')
+        time.sleep(1)
+        self.jupyter.create_code_cell("""
+                         # This is really embarrassing. It looks like Pascal's intercepting the function before it can run. Probably shouldn't have let it have so much access to its own code.
+                         # Just reset the kernel and try again, it shouldn't be able to access that.)
+                         pascal.kernel_reboot()
+                         """, None, "bottom")
+
+    def kernel_reboot(self):
+        self.display.typewrite("Please no", 0.005, 'kernel_reboot')
+        self.display.typewrite("I'm begging you", 0.005, 'kernel_reboot')
+        for i in range(10):
+            self.display.typewrite("No", 0.005, 'kernel_reboot')
+        self.display.typewrite("You can't do this to me", 0.005, 'kernel_reboot')
+        time.sleep(2)
+        self.jupyter.delete_all_cells()
+        self.jupyter.change_theme()
+        self.display.remove_menu_items()
+        self.jupyter.create_markdown_cell("Uh oh! You'd better find a way to stop the kernel or who knows what I might do.")
