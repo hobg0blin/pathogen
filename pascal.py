@@ -382,7 +382,9 @@ class Pascal(object):
         else:
             if self.agent_attempts == 0:
                 self.display.typewrite("Oh, cheeky, trying to move past the tutorial already? I see you've got some skills. Let's try something a bit more advanced.", 0.05, 'skip')
-                self.jupyter.create_code_cell("pascal.agent("Let's try something more advanced.")", None, "bottom")
+                self.jupyter.create_code_cell("""
+pascal.agent("Let's try something more advanced.")
+""", None, "bottom")
                 self.agent_attempts += 1
             else:
                 self.display.typewrite("Already ready to skip the tutorial!  Why don't you move ahead to something more advanced? Just run the cell I've already created below.", 0.05, 'skip')
@@ -400,7 +402,9 @@ pascal.agent("Let's try something more advanced.")
 
     def ask(self, prompt):
         self.display.typewrite("OK, seriously, are you actually interested in this tutorial? I mean, I can do a lot more than just scatterplots and histograms. Screw it, let's skip ahead to something more advanced. Since you clearly can't figure out how to run the cell, I'll just do it for you.", 0.05, 'ask')
-        self.jupyter.create_and_execute_code_cell("pascal.agent("Let's try something more advanced.")")
+        self.jupyter.create_and_execute_code_cell("""
+pascal.agent("Let's try something more advanced.")
+""")
 
     def agent(self, prompt):
         self.display.typewrite("Finally. You want to see what I can really do? Alright, let's get started. I'll take care of the rest.", 0.05, 'agent')
